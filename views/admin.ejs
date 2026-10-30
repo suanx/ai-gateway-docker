@@ -216,6 +216,39 @@ code{font-family:'SF Mono',Menlo,Consolas,monospace;background:rgba(34,211,238,.
   </div>
 </header>
 
+<div class="card" style="border-color:rgba(255,90,90,.35)">
+  <h2><span class="ic">🔒</span> 安全设置</h2>
+
+  <div id="pwWarn" class="warn" style="border-color:rgba(255,90,90,.4);background:rgba(255,90,90,.08)">
+    <span>⚠</span><div><b>当前未设管理密码，后台任何人可访问。</b>请立即在下方设置。</div>
+  </div>
+  <div id="pwOk" class="warn" style="display:none;border-color:rgba(80,230,160,.35);background:rgba(80,230,160,.07)">
+    <span>✓</span><div>管理密码<b>已设置</b>。修改后立即生效，当前会话会自动刷新。</div>
+  </div>
+
+  <div class="row">
+    <div class="field"><label>新管理密码（登录本后台用）</label>
+      <input id="newpw" type="password" autocomplete="new-password" placeholder="留空表示不修改"></div>
+    <div class="field"><label>确认新密码</label>
+      <input id="newpw2" type="password" autocomplete="new-password" placeholder="再输一次"></div>
+  </div>
+
+  <div class="field"><label>网关访问密码 ACCESS_KEY（客户端调用时校验）</label>
+    <div class="row" style="flex-wrap:nowrap;gap:8px">
+      <input id="ak" placeholder="留空表示不校验" style="flex:1">
+      <button class="btn btn-g" type="button" onclick="genAk()" style="white-space:nowrap">随机生成</button>
+      <button class="btn btn-g" type="button" onclick="toggleAk()" style="white-space:nowrap">显示</button>
+      <button class="btn btn-g" type="button" onclick="cpAk()" style="white-space:nowrap">复制</button>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="btn" onclick="saveSecurity()">保存安全设置</button>
+    <button class="btn btn-g" type="button" onclick="clearPw()">清除管理密码</button>
+    <span id="secMsg" style="font-size:12.5px"></span>
+  </div>
+</div>
+
 <div class="card">
   <h2><span class="ic">📡</span> 上游节点</h2>
   <table>
@@ -241,10 +274,6 @@ code{font-family:'SF Mono',Menlo,Consolas,monospace;background:rgba(34,211,238,.
   <div class="row">
     <div class="field"><label>Pollinations Key（可选）</label><input id="pollinations_key" placeholder="匿名已够用"></div>
     <div class="field"><label>AI Horde Key（可选）</label><input id="aihorde_key" placeholder="留空=匿名 0000000000"></div>
-  </div>
-  <div class="row">
-    <div class="field"><label>网关访问密码 ACCESS_KEY</label><input id="access_key" placeholder="客户端调用时校验"></div>
-    <div class="field"><label>管理密码 ADMIN_PASSWORD</label><input id="admin_password" type="password" placeholder="登录本后台用"></div>
   </div>
   <div class="field"><label>调度优先级（逗号分隔，慢速排最后）</label>
     <input id="provider_order" placeholder="groq,llm7,kilo,nvidia,pollinations,aihorde"></div>
@@ -300,7 +329,9 @@ code{font-family:'SF Mono',Menlo,Consolas,monospace;background:rgba(34,211,238,.
 
 <script>
 var TOKEN = localStorage.getItem('gw_token') || '';
-var FIELDS = ['groq_key','llm7_key','nvidia_key','kilo_key','pollinations_key','aihorde_key','access_key','admin_password','provider_order'];
+// 上游 Key + 调度顺序。密码类已移到「安全设置」卡片单独处理，
+// 避免同一字段两处可改、保存时互相覆盖。
+var FIELDS = ['groq_key','llm7_key','nvidia_key','kilo_key','pollinations_key','aihorde_key','provider_order'];
 
 /* ---------- 星空粒子 ---------- */
 (function(){
@@ -374,6 +405,86 @@ async function doLogin(){
 }
 function logout(){ localStorage.removeItem('gw_token'); location.reload(); }
 
+/* ---------- 安全设置 ---------- */
+function secMsg(t, ok){
+  var e = document.getElementById('secMsg');
+  e.textContent = t; e.style.color = ok ? 'var(--ok,#50e6a0)' : 'var(--red,#ff5a5a)';
+}
+function genAk(){
+  var b = new Uint8Array(16);
+  (window.crypto||{}).getRandomValues ? crypto.getRandomValues(b)
+    : b.forEach(function(_,i){ b[i] = Math.floor(Math.random()*256); });
+  var s = Array.prototype.map.call(b, function(x){ return ('0'+x.toString(16)).slice(-2); }).join('');
+  var el = document.getElementById('ak'); el.value = 'sk-' + s;
+  el.type = 'text';
+}
+function toggleAk(){
+  var el = document.getElementById('ak');
+  el.type = (el.type === 'password') ? 'text' : 'password';
+}
+function cpAk(){
+  var v = document.getElementById('ak').value;
+  if(!v){ secMsg('请先填写或生成 ACCESS_KEY', false); return; }
+  if(navigator.clipboard) navigator.clipboard.writeText(v);
+  secMsg('已复制到剪贴板 ✓', true);
+}
+
+async function clearPw(){
+  if(!confirm('确定清除管理密码？清除后后台将无需密码即可访问（不安全）。')) return;
+  await saveSecurity(true);
+}
+
+async function saveSecurity(forceClearPw){
+  var p1 = document.getElementById('newpw').value;
+  var p2 = document.getElementById('newpw2').value;
+  var ak = document.getElementById('ak').value;
+
+  if(!forceClearPw && p1 !== p2){ secMsg('两次输入的密码不一致', false); return; }
+
+  var payload = {};
+  if(forceClearPw) payload.admin_password = '';       // 明确清除
+  else if(p1)      payload.admin_password = p1;       // 修改
+  // 打码回显值原样提交会被服务端忽略；其余（含空串=清除）都生效
+  if(ak.indexOf('••••') === -1) payload.access_key = ak;
+
+  if(Object.keys(payload).length === 0){
+    secMsg('没有需要保存的改动', false); return;
+  }
+
+  var m = document.getElementById('secMsg');
+  m.textContent = '保存中…'; m.style.color = 'var(--dim)';
+  try{
+    var r = await api('/api/config',{method:'POST',body:JSON.stringify(payload)});
+    var j = await r.json();
+    if(!j.ok){ secMsg('保存失败，请重试', false); return; }
+
+    document.getElementById('newpw').value = '';
+    document.getElementById('newpw2').value = '';
+
+    // 用「键存在」判断，因为清除密码时值是空串
+    if(Object.prototype.hasOwnProperty.call(payload,'admin_password')){
+      // 密码变了 → 旧 token 失效，用新密码重新登录换取新 token
+      var lr = await fetch('/api/login',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({password:payload.admin_password})});
+      var lj = await lr.json();
+      if(lj && lj.ok){
+        TOKEN = lj.token; localStorage.setItem('gw_token', TOKEN);
+        secMsg(forceClearPw ? '管理密码已清除 ✓' : '已保存，会话已用新密码刷新 ✓', true);
+        await loadConfig(); await loadHealth();
+      }else{
+        secMsg('密码已保存，请重新登录', true);
+        setTimeout(function(){ logout(); }, 1200);
+      }
+    }else{
+      secMsg('已保存 ✓', true);
+      await loadConfig();
+    }
+  }catch(err){
+    secMsg('请求失败：' + err.message, false);
+  }
+}
+
 /* ---------- 启动 ---------- */
 async function boot(){
   document.getElementById('baseUrl').textContent = location.origin + '/v1';
@@ -386,8 +497,16 @@ async function loadConfig(){
   var j = await r.json();
   FIELDS.forEach(function(f){
     var el = document.getElementById(f);
-    if(el && f!=='admin_password') el.value = j[f] || '';
+    if(el) el.value = j[f] || '';
   });
+
+  // 安全设置：只回显打码值，绝不回显明文密码
+  var set = !!j.admin_password_set;
+  document.getElementById('pwWarn').style.display = set ? 'none' : 'flex';
+  document.getElementById('pwOk').style.display  = set ? 'flex' : 'none';
+  var ak = document.getElementById('ak');
+  if(!ak.value || ak.value.indexOf('••••') !== -1) ak.value = j.access_key || '';
+
   document.getElementById('apiKeyHint').textContent = j.access_key_set ? '你的 ACCESS_KEY' : '任意值（未设密码）';
 }
 
