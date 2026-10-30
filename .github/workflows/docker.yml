@@ -92,7 +92,14 @@ jobs:
 
       - name: Create manifest list
         working-directory: /tmp/digests
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+          set -e
+          args=""
+          for t in $TAGS; do args="$args -t $t"; done
+          imgs=""
+          for d in *; do imgs="$imgs ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$d"; done
+          echo "tags: $args"
+          echo "images: $imgs"
+          docker buildx imagetools create $args $imgs
