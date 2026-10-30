@@ -1,6 +1,6 @@
 # AI 网关 Docker 版 —— 宝塔面板部署说明
 
-多上游 AI 网关（Groq / LLM7 / Kilo / NVIDIA），带 **Web 管理后台**，Docker 一键部署到 VPS。
+多上游 AI 网关（Groq / LLM7 / Kilo / NVIDIA / Pollinations / AI Horde），带 **Web 管理后台**，Docker 一键部署到 VPS。
 
 - 零依赖，纯 Node 内置模块，镜像小、启动快
 - 管理后台 `/admin`：填 Key、看上游连通性、在线测试
@@ -93,6 +93,8 @@ nginx -t && systemctl reload nginx
 | **在线测试** | 选端点 + 模型发请求，看流式输出和命中的上游 |
 | **优先级** | 调 `provider_order`，逗号分隔 |
 
+> **关于 Keenable / Parallel**：这两个在 FreeLLMAPI 里是 `SearchOnlyProvider`，**只提供联网搜索，不提供聊天模型**，所以本网关没把它们当 LLM 上游。作为替代，加了 **Pollinations**（真匿名 LLM）和 **AI Horde**（真匿名 LLM）。
+
 **Key 填写要点：**
 
 - 留空 = 跳过该上游（LLM7 / Kilo 除外，它们匿名可用）
@@ -103,8 +105,10 @@ nginx -t && systemctl reload nginx
 
 | 场景 | 顺序 | 理由 |
 |---|---|---|
-| 稳定优先（推荐） | `llm7,groq,kilo,nvidia` | Groq 有地区封锁风险 |
-| 速度优先 | `groq,llm7,nvidia,kilo` | Groq 最快 |
+| 稳定优先（推荐） | `llm7,groq,kilo,nvidia,pollinations,aihorde` | Groq 有地区封锁风险 |
+| 速度优先 | `groq,llm7,nvidia,kilo,pollinations,aihorde` | Groq 最快 |
+
+> **AI Horde 务必排最后**：它靠志愿者算力排队，单次可能几十秒到几分钟。放前面会拖慢正常请求。
 
 ---
 
@@ -132,6 +136,8 @@ API  Key: 你的 ACCESS_KEY
 | `qwen` | `qwen/qwen3.8-27b` | `qwen3-235b` | `qwen/qwen3-235b-a22b` | `nemotron…:free` |
 | `deepseek` | — | `deepseek-v4-pro` | `deepseek-ai/deepseek-v4.1-flash` | `kilo-auto/free` |
 
+**AI Horde 特殊说明**：它的 OpenAI 代理有若干限制，网关已自动处理——`max_tokens` 不足 16 会被抬到 16（否则 422）、`stop` 强制转数组、不支持 tool calling 会直接丢弃相关字段、强制非流式。另外它靠志愿者算力排队，**单次可能几十秒到几分钟，质量因 worker 而异**，仅建议作最后兜底。
+
 > Kilo 免费档只认带 `:free` 的 ID，其他会自动回退到 `kilo-auto/free`。
 
 ---
@@ -143,6 +149,8 @@ POST /groq/v1/chat/completions      # 强制 Groq
 POST /llm7/v1/chat/completions      # 强制 LLM7
 POST /kilo/v1/chat/completions      # 强制 Kilo
 POST /nvidia/v1/chat/completions    # 强制 NVIDIA
+POST /pollinations/v1/chat/completions  # 强制 Pollinations
+POST /aihorde/v1/chat/completions       # 强制 AI Horde
 GET  /healthz                       # 连通性自检（无需认证）
 ```
 

@@ -1,6 +1,6 @@
 # AI 网关 Docker 版
 
-多上游 AI 网关（**Groq · LLM7 · Kilo · NVIDIA**），带 **Web 管理后台**，一条 `docker compose up -d` 部署到 VPS。
+多上游 AI 网关（**Groq · LLM7 · Kilo · NVIDIA · Pollinations · AI Horde**），带 **Web 管理后台**，一条 `docker compose up -d` 部署到 VPS。
 
 ```
 ┌─────────────┐
@@ -13,7 +13,7 @@
                    │  /v1/*   OpenAI 兼容接口  │
                    └────┬─────┬─────┬─────┬────┘
                         ▼     ▼     ▼     ▼
-                      Groq  LLM7  Kilo  NVIDIA   ← 挂了自动降级
+          Groq  LLM7  Kilo  NVIDIA  Pollinations  AI Horde  ← 挂了自动降级
 ```
 
 ## 为什么用这个
@@ -32,6 +32,7 @@
 - **Web 后台** `/admin` —— 填 Key、看连通性、在线测试，不用碰命令行
 - **配置持久化** —— 存 `/app/data/config.json`（挂载卷），重启升级都不丢
 - **自动降级** —— 上游 4xx/5xx/网络错误自动切下一个，最多重试全部上游
+- **请求体规范化** —— 自动适配各上游对 OpenAI 契约的偏离（如 AI Horde 的 `max_tokens`/`stop`/`tools` 约束）
 - **模型名翻译** —— 填 `gpt-oss-120b`，自动按上游转成各自 ID
 - **SSE 流式透传** —— 逐字输出，不被缓冲
 - **安全加固** —— 非 root 运行、`cap_drop: ALL`、日志轮转
@@ -75,7 +76,7 @@ curl http://127.0.0.1:3002/healthz
 | `/admin` | **Web 管理后台** |
 | `/healthz` | 连通性自检（JSON，无需认证） |
 | `/v1/*` | 自动选上游，失败降级 |
-| `/groq/v1/*` `/llm7/v1/*` `/kilo/v1/*` `/nvidia/v1/*` | 强制指定上游 |
+| `/groq/v1/*` `/llm7/v1/*` `/kilo/v1/*` `/nvidia/v1/*` `/pollinations/v1/*` `/aihorde/v1/*` | 强制指定上游 |
 
 ## 管理后台能做啥
 
@@ -102,6 +103,8 @@ API  Key: 你的 ACCESS_KEY
 | LLM7 | **匿名可用** | 匿名 10 次/分，配 Key 60 次/分 |
 | Kilo | **匿名可用** | 200 次/小时 |
 | NVIDIA | 需要 | 约 40 RPM |
+| Pollinations | **匿名可用** | 共享容量，未公布 |
+| AI Horde | **匿名可用** | Kudos 队列，无 Token 上限（但极慢） |
 
 未配 Key 的上游会自动跳过，不参与降级。
 

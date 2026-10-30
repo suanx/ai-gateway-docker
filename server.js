@@ -5,6 +5,7 @@ const { URL } = require('url');
 const store = require('./lib/store');
 const { proxy, healthAll, jsonError, cors } = require('./lib/proxy');
 const { page: adminPage } = require('./lib/admin');
+const { PROVIDERS } = require('./lib/providers');
 
 const cfg0 = store.load();
 const PORT = Number(process.env.PORT || 3002);
@@ -128,7 +129,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ---- 业务代理 ----
-  const forcedMatch = path.match(/^\/(groq|llm7|kilo|nvidia)\/v1(\/.*)?$/);
+  const forcedMatch = path.match(/^\/(groq|llm7|kilo|nvidia|pollinations|aihorde)\/v1(\/.*)?$/);
   if (forcedMatch || path.startsWith('/v1/')) {
     if (!apiAuthed(req)) {
       jsonError(res, 'Unauthorized：ACCESS_KEY 不正确', 401, 'auth_error');
@@ -151,7 +152,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   const c = store.get();
-  const set = ['groq', 'llm7', 'kilo', 'nvidia'].filter((k) => c[k + '_key']);
+  const set = Object.keys(PROVIDERS).filter((k) => c[k + '_key']);
   console.log(`[gateway] 监听 :${PORT}`);
   console.log(`[gateway] 管理后台 http://localhost:${PORT}/admin`);
   console.log(`[gateway] 已配置上游: ${set.length ? set.join(', ') : '(无，匿名档仍可用)'}`);

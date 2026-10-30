@@ -17,9 +17,11 @@ services:
       LLM7_API_KEY: ${LLM7_API_KEY:-}
       KILO_API_KEY: ${KILO_API_KEY:-}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      POLLINATIONS_API_KEY: ${POLLINATIONS_API_KEY:-}
+      AIHORDE_API_KEY: ${AIHORDE_API_KEY:-}
       ACCESS_KEY: ${ACCESS_KEY:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      PROVIDER_ORDER: ${PROVIDER_ORDER:-groq,llm7,kilo,nvidia}
+      PROVIDER_ORDER: ${PROVIDER_ORDER:-groq,llm7,kilo,nvidia,pollinations,aihorde}
 
     ports:
       # 只绑定本机，由 Nginx 对外。切勿改成 0.0.0.0 暴露公网
