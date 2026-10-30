@@ -1,0 +1,15 @@
+{
+  "name": "ai-gateway-docker",
+  "version": "1.0.0",
+  "description": "多上游 AI 网关（Groq/LLM7/Kilo/NVIDIA）Docker 版，带 Web 管理后台",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "private": true,
+  "dependencies": {}
+}

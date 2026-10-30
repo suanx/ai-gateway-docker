@@ -1,0 +1,49 @@
+# AI 网关 Docker 版（宝塔面板部署用）
+# 端口 3002，避免与常见服务冲突
+services:
+  ai-gateway:
+    image: ${GATEWAY_IMAGE:-ghcr.io/suanx/ai-gateway:latest}
+    container_name: ai-gateway
+    # 想本地构建就解开下面注释，并把上面 image 行注释掉：
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+    environment:
+      # 首次启动会把这些写入 /app/data/config.json
+      # 之后以 config.json 为准（后台可改），环境变量仅作初始值
+      PORT: 3002
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LLM7_API_KEY: ${LLM7_API_KEY:-}
+      KILO_API_KEY: ${KILO_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      ACCESS_KEY: ${ACCESS_KEY:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      PROVIDER_ORDER: ${PROVIDER_ORDER:-groq,llm7,kilo,nvidia}
+
+    ports:
+      # 只绑定本机，由 Nginx 对外。切勿改成 0.0.0.0 暴露公网
+      - "127.0.0.1:${PORT:-3002}:3002"
+
+    volumes:
+      - ai-gateway-data:/app/data
+
+    restart: unless-stopped
+
+    # 安全加固
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 128
+
+    # 日志轮转，防止写满磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  ai-gateway-data:
