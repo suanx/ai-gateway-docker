@@ -1,10 +1,6 @@
+node_modules
 .git
 .github
-node_modules
-deploy
-*.md
-!deploy/README.md
-Dockerfile
-docker-compose.yml
-.env
+*.zip
 data
+.env

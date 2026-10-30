@@ -1,8 +1,9 @@
-# 多阶段（零依赖，构建即拷贝）
+# 多阶段构建：依赖装在 builder，运行时只带生产依赖
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json ./
-RUN npm pkg delete dependencies devDependencies scripts 2>/dev/null || true
+# 只装生产依赖，锁定版本保证可复现
+RUN npm install --omit=dev --no-audit --no-fund
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
@@ -11,9 +12,11 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -u 1001 -S nodejs -G nodejs
 
+COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs --from=build /app/node_modules ./node_modules
 COPY --chown=nodejs:nodejs server.js ./
 COPY --chown=nodejs:nodejs lib/ ./lib/
-COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs views/ ./views/
 
 # 数据目录（配置持久化）
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data

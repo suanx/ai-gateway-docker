@@ -1,7 +1,7 @@
 {
   "name": "ai-gateway-docker",
-  "version": "1.0.0",
-  "description": "多上游 AI 网关（Groq/LLM7/Kilo/NVIDIA）Docker 版，带 Web 管理后台",
+  "version": "2.0.0",
+  "description": "多上游 AI 网关（Groq/LLM7/Kilo/NVIDIA/Pollinations/AI Horde）Docker 版，带 Web 管理后台",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,5 +11,9 @@
   },
   "license": "MIT",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "@fastify/view": "^8.2.0",
+    "ejs": "^3.1.10",
+    "fastify": "^4.28.1"
+  }
 }

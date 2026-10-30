@@ -1,8 +1,12 @@
 # AI 网关 Docker 版 —— 宝塔面板部署说明
 
-多上游 AI 网关（Groq / LLM7 / Kilo / NVIDIA / Pollinations / AI Horde），带 **Web 管理后台**，Docker 一键部署到 VPS。
+多上游 AI 网关（Groq / LLM7 / Kilo / NVIDIA / Pollinations / AI Horde）
 
-- 零依赖，纯 Node 内置模块，镜像小、启动快
+> **技术栈**：Fastify 4 + EJS 3（服务端渲染）。
+> 页面显隐、状态数据全部在服务端渲染完成，浏览器拿到的是终态 HTML——
+> 不再依赖客户端 JS 决定显隐，杜绝「JS 出错导致页面全黑 / 按钮无响应」。，带 **Web 管理后台**，Docker 一键部署到 VPS。
+
+- Fastify + EJS 服务端渲染，页面显隐在服务端决定，浏览器拿到即终态 HTML
 - 管理后台 `/admin`：填 Key、看上游连通性、在线测试
 - 配置存 `/app/data/config.json`（挂载卷），**重启不丢**
 - OpenAI 协议兼容，改 `base_url` 即可对接
