@@ -55,6 +55,10 @@ PROVIDER_RULES = {
                    "否则会被强制替换成 kilo-auto/free，测了也没意义",
         "sort":    lambda ms: sorted(ms),
     },
+    "nvidia": {
+        # NIM 冷启动慢（首次调用要拉起容器），超时放宽
+        "timeout": 90,
+    },
     "aihorde": {
         # 志愿算力，队列慢，超时放宽
         "timeout": 120,
@@ -66,15 +70,18 @@ PROVIDER_RULES = {
 
 # ---------- 能力分类 ----------
 RULES = [
-    ("image",     r"image|flux|nanobanana|banana|seedream|kontext|gptimage|imagen|dall|z-image|midjourney|recraft"),
+    ("image",     r"image|flux|nanobanana|banana|seedream|kontext|gptimage|imagen|dall|z-image|"
+                  r"midjourney|recraft|stable-diffusion|sdxl|sana|playground|pixart"),
     ("video",     r"video|seedance|veo|wan-|kling|hailuo|animate"),
     ("stt",       r"transcribe|whisper|stt|asr"),
     ("tts",       r"tts|speech|eleven|audio.*flash|voice"),
     ("embedding", r"embed"),
+    # NVIDIA NIM 有大量 rerank / 检索模型，单独归类避免混进 chat
+    ("rerank",    r"rerank|retriev"),
     ("3d",        r"trellis|3d|mesh"),
 ]
 CHAT = "chat"
-ORDER = [CHAT, "image", "tts", "stt", "embedding", "video", "3d"]
+ORDER = [CHAT, "image", "tts", "stt", "embedding", "rerank", "video", "3d"]
 
 
 def classify(mid):
