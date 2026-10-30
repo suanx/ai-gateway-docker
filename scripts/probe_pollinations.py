@@ -7,8 +7,9 @@ Pollinations 全类型模型探测脚本
 用对应端点逐个实测，记录真实延迟，区分「成功且快」和「报错但快」。
 
 用法：
-    python3 probe_pollinations.py                       # 自动读环境变量
-    python3 probe_pollinations.py <ACCESS_KEY>          # 直连本机网关
+    python3 probe_pollinations.py                       # 用脚本内置默认 Key
+    python3 probe_pollinations.py <ACCESS_KEY>          # 指定 Key
+    ACCESS_KEY=xxx python3 probe_pollinations.py        # 环境变量优先
     python3 probe_pollinations.py <KEY> --direct        # 直连 pollinations（不经网关）
     python3 probe_pollinations.py <KEY> --only chat,tts # 只测指定类别
     python3 probe_pollinations.py <KEY> --limit 20      # 每类最多测 20 个
@@ -30,6 +31,10 @@ import concurrent.futures as cf
 DEFAULT_HOST = "http://127.0.0.1:3002"
 PROVIDER = "pollinations"
 DIRECT_BASE = "https://gen.pollinations.ai/v1"
+
+# 默认 ACCESS_KEY：不带参数直接跑时使用。
+# 命令行第一个位置参数可覆盖；ACCESS_KEY 环境变量优先级最高。
+DEFAULT_ACCESS_KEY = "sk-525cdcdd628cf"
 
 TIMEOUT = 45          # 单个请求超时（秒）
 WORKERS = 3           # 并发数
@@ -184,7 +189,8 @@ def judge(kind, r):
 # ---------- 主流程 ----------
 def main():
     args = [a for a in sys.argv[1:]]
-    key = os.environ.get("ACCESS_KEY", "")
+    # 优先级：环境变量 > 命令行参数 > 脚本内默认值
+    key = os.environ.get("ACCESS_KEY", "") or DEFAULT_ACCESS_KEY
     direct = "--direct" in args
     only = None
     limit = LIMIT
