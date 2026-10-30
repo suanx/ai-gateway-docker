@@ -5,6 +5,8 @@ const { URL } = require('url');
 const store = require('./lib/store');
 const { proxy, healthAll, jsonError, cors } = require('./lib/proxy');
 const { page: adminPage } = require('./lib/admin');
+const { page: homePage } = require('./lib/home');
+const status = require('./lib/status');
 const { PROVIDERS } = require('./lib/providers');
 
 const cfg0 = store.load();
@@ -57,10 +59,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 根路径 → 跳后台
+  // 公开状态（首页用，不含任何密钥信息）
+  if (path === '/api/status') {
+    const s = await status.getStatus(store.get());
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...cors() });
+    res.end(JSON.stringify(s));
+    return;
+  }
+
+  // 根路径 → 服务状态首页（不再直接跳后台登录）
   if (path === '/') {
-    res.writeHead(302, { Location: '/admin', ...cors() });
-    res.end();
+    const s = await status.getStatus(store.get());
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...cors() });
+    res.end(homePage(s));
     return;
   }
 
@@ -151,6 +162,9 @@ const server = http.createServer(async (req, res) => {
 
   jsonError(res, '路径不存在。可用：/admin、/healthz、/v1/*', 404, 'not_found');
 });
+
+// 预热状态缓存，首页首屏直接有数据
+status.warmup(cfg0);
 
 server.listen(PORT, '0.0.0.0', () => {
   const c = store.get();
