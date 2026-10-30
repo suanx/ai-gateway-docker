@@ -53,9 +53,15 @@ const server = http.createServer(async (req, res) => {
   // 管理后台页面
   // 未设 ADMIN_PASSWORD 时直接在页面里下发 token，免去登录请求（避免登录按钮无响应）
   if (path === '/admin' || path === '/admin/') {
-    const preToken = store.get().admin_password ? '' : store.createSession();
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...cors() });
-    res.end(adminPage(preToken));
+    const noPw = !store.get().admin_password;
+    const preToken = noPw ? store.createSession() : '';
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 
+      ...cors(),
+    });
+    // 未设密码：服务端直接渲染后台（不等 JS），并下发 token
+    res.end(adminPage(preToken, { authed: noPw }));
     return;
   }
 
@@ -70,7 +76,11 @@ const server = http.createServer(async (req, res) => {
   // 根路径 → 服务状态首页（不再直接跳后台登录）
   if (path === '/') {
     const s = await status.getStatus(store.get());
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...cors() });
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 
+      ...cors(),
+    });
     res.end(homePage(s));
     return;
   }
