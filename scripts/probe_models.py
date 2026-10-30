@@ -6,9 +6,10 @@ AI 网关 通用模型探测脚本
 支持任意上游（kilo / groq / llm7 / nvidia / pollinations / aihorde），
 自动拉模型列表 → 按上游规则过滤 → 按能力分类 → 逐个实测延迟。
 
-用法：
+用法（--key 值 与 --key=值 两种写法都支持）：
     python3 probe_models.py                          # 默认测 kilo
     python3 probe_models.py --provider groq
+    python3 probe_models.py --provider=nvidia        # 等号写法同样有效
     python3 probe_models.py --provider pollinations --only image,tts
     python3 probe_models.py --limit 0                # 不限量（测全部）
     python3 probe_models.py --workers 6              # 提高并发
@@ -94,10 +95,12 @@ def classify(mid):
 
 def build_request(kind, model):
     if kind == CHAT:
+        # 上限给足：推理模型（dots-3-note-preview、nemotron-3-ultra 等）
+        # 会先把 token 耗在思考上，给 16 会导致正文为空、被误判成可用。
         return ("POST", "/chat/completions", {
             "model": model,
             "messages": [{"role": "user", "content": "say OK"}],
-            "max_tokens": 16,
+            "max_tokens": 200,
         })
     if kind == "image":
         return ("POST", "/images/generations", {
@@ -166,13 +169,18 @@ def judge(kind, r):
 
     if kind == CHAT:
         try:
-            c = j["choices"][0]["message"]["content"]
-            return True, (c or "").strip().replace("\n", " ")[:28] or "(空回复)"
+            c = j["choices"][0]["message"].get("content")
+            if c is None:
+                # 兼容部分上游的 text 字段
+                c = j["choices"][0].get("text")
         except Exception:
-            try:
-                return True, str(j["choices"][0]["text"])[:28]
-            except Exception:
-                return False, "无 choices · " + json.dumps(j)[:70]
+            return False, "无 choices · " + json.dumps(j)[:70]
+
+        txt = (c or "").strip()
+        if not txt:
+            # 推理模型把额度耗在思考上，正文为空 —— 判失败，不算可用
+            return False, "空内容(可能推理模型)"
+        return True, txt.replace("\n", " ")[:28]
 
     if kind == "image":
         try:
@@ -211,19 +219,43 @@ def main():
     workers = WORKERS
     timeout = TIMEOUT
 
-    for a in args:
-        if a.startswith("--provider="):
-            provider = a.split("=", 1)[1]
-        elif a.startswith("--only="):
-            only = set(a.split("=", 1)[1].split(","))
-        elif a.startswith("--limit="):
-            limit = int(a.split("=", 1)[1])
-        elif a.startswith("--workers="):
-            workers = int(a.split("=", 1)[1])
-        elif a.startswith("--timeout="):
-            timeout = int(a.split("=", 1)[1])
-        elif a == "--direct":
+    # 同时兼容两种写法：
+    #   --provider nvidia   （空格，文档里推荐的写法）
+    #   --provider=nvidia   （等号）
+    # 早期版本只认等号，导致 --provider nvidia 被静默忽略、跑回默认上游。
+    VALUED = ("--provider", "--only", "--limit", "--workers", "--timeout")
+    i = 0
+    while i < len(args):
+        a = args[i]
+        name, eq, inline = a.partition("=")
+
+        if eq:
+            val = inline                      # --key=value
+        elif name in VALUED:
+            # --key value：值在下一个参数里
+            if i + 1 >= len(args):
+                print("❌ %s 缺少取值（用法: %s <值> 或 %s=<值>）" % (name, name, name))
+                return 1
+            val = args[i + 1]
+            i += 1
+        else:
+            val = None
+
+        if name == "--provider":
+            provider = val
+        elif name == "--only":
+            only = {s.strip() for s in val.split(",") if s.strip()}
+        elif name == "--limit":
+            limit = int(val)
+        elif name == "--workers":
+            workers = int(val)
+        elif name == "--timeout":
+            timeout = int(val)
+        elif name == "--direct":
             direct = True
+        elif name.startswith("--"):
+            print("⚠ 忽略未知参数: %s" % name)
+        i += 1
 
     rule = PROVIDER_RULES.get(provider, {})
     timeout = rule.get("timeout", timeout)
