@@ -49,9 +49,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 管理后台页面
+  // 未设 ADMIN_PASSWORD 时直接在页面里下发 token，免去登录请求（避免登录按钮无响应）
   if (path === '/admin' || path === '/admin/') {
+    const preToken = store.get().admin_password ? '' : store.createSession();
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...cors() });
-    res.end(adminPage());
+    res.end(adminPage(preToken));
     return;
   }
 
